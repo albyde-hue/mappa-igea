@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Shape immobile IGEA</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <style>
+    html, body, #map { height: 100%; margin: 0; }
+    #info {
+      position: absolute;
+      z-index: 1000;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: white;
+      padding: 8px 14px;
+      border-radius: 6px;
+      box-shadow: 0 1px 6px rgba(0,0,0,.3);
+      font: 14px Arial, sans-serif;
+    }
+  </style>
+</head>
+<body>
+  <div id="info">Caricamento shape...</div>
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const map = L.map("map").setView([39.2, 9.1], 8);
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 21,
+      attribution: "&copy; OpenStreetMap contributors"
+    }).addTo(map);
+
+    const idRichiesto = new URLSearchParams(location.search).get("id");
+    const info = document.getElementById("info");
+
+    function propertyId(properties) {
+      const keys = [
+        "ID", "Id", "id", "NAME", "Name", "name",
+        "CODICE", "Codice", "codice"
+      ];
+
+      for (const key of keys) {
+        if (properties && properties[key] !== undefined && properties[key] !== null) {
+          return String(properties[key]).trim();
+        }
+      }
+
+      return "";
+    }
+
+    function normalize(value) {
+      return String(value || "").trim().toUpperCase();
+    }
+
+    const selectedStyle = {
+      color: "#ffff00",
+      weight: 4,
+      opacity: 1,
+      fillColor: "#0066ff",
+      fillOpacity: 0.35
+    };
+
+    fetch("patrimonio.geojson", { cache: "no-store" })
+      .then(function(response) {
+        if (!response.ok) {
+          throw new Error("GeoJSON non raggiungibile: " + response.status);
+        }
+        return response.json();
+      })
+      .then(function(geojson) {
+        const features = geojson.features || [];
+        const selected = features.filter(function(feature) {
+          return normalize(propertyId(feature.properties)) === normalize(idRichiesto);
+        });
+
+        if (!idRichiesto) {
+          throw new Error("Parametro ID mancante nell'URL.");
+        }
+
+        if (selected.length === 0) {
+          throw new Error("Shape non trovato per ID: " + idRichiesto);
+        }
+
+        const layer = L.geoJSON(
+          { type: "FeatureCollection", features: selected },
+          {
+            style: selectedStyle,
+            onEachFeature: function(feature, featureLayer) {
+              const id = propertyId(feature.properties);
+              featureLayer.bindPopup("<b>ID:</b> " + id).openPopup();
+            }
+          }
+        ).addTo(map);
+
+        const bounds = layer.getBounds();
+        if (bounds.isValid()) {
+          map.fitBounds(bounds, { padding: [40, 40], maxZoom: 19 });
+        }
+
+        info.textContent = "Shape: " + idRichiesto;
+      })
+      .catch(function(error) {
+        console.error(error);
+        info.textContent = error.message;
+      });
+  </script>
+</body>
+</html>
