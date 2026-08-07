@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Mappa Completa Patrimonio IGEA</title>
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <script src="https://unpkg.com/maplibre-gl@3.6.0/dist/maplibre-gl.js"></script>
+  <link href="https://unpkg.com/maplibre-gl@3.6.0/dist/maplibre-gl.css" rel="stylesheet" />
+  <style>
+    body { margin: 0; padding: 0; }
+    #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script>
+    const map = new maplibregl.Map({
+      container: 'map',
+      style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+      center: [8.53, 39.31], // Coordinate centrali Sardegna/Iglesias
+      zoom: 9
+    });
+
+    map.on('load', () => {
+      map.addSource('patrimonio', {
+        'type': 'geojson',
+        'data': 'patrimonio.geojson'
+      });
+
+      // Rendering completo dei 3.800 Poligoni via GPU
+      map.addLayer({
+        'id': 'patrimonio-fill',
+        'type': 'fill',
+        'source': 'patrimonio',
+        'paint': {
+          'fill-color': '#00ff87',
+          'fill-opacity': 0.35
+        }
+      });
+
+      // Bordi vettoriali ad alta definizione
+      map.addLayer({
+        'id': 'patrimonio-line',
+        'type': 'line',
+        'source': 'patrimonio',
+        'paint': {
+          'line-color': '#ffbb00',
+          'line-width': 1.5
+        }
+      });
+
+      // Informazioni al click del mouse/tap su schermo
+      map.on('click', 'patrimonio-fill', (e) => {
+        const props = e.features[0].properties;
+        new maplibregl.Popup()
+          .setLngLat(e.lngLat)
+          .setHTML(`<b>ID:</b> ${props.ID || props.name || 'N/D'}<br><b>Comune:</b> ${props.COMUNE || 'N/D'}`)
+          .addTo(map);
+      });
+    });
+  </script>
+</body>
+</html>
